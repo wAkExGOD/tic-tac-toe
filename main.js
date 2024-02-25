@@ -61,8 +61,8 @@ function handleCellClick(i, j) {
 
   rows[i][j] = ["X", "O"][turnIndex % 2];
   winner = getWinner(rows);
-  isDraw = rows.flat().join("").length === 9 && !winner;
   turnIndex++;
+  isDraw = rows.flat().join("").length === 9 && !winner;
 
   window.dispatchEvent(new Event("update-field"));
 }
@@ -127,7 +127,7 @@ function render(gameInfo, onCellClick, onRestartClick) {
     restartGameButton.textContent = "Играть снова";
     restartGameButton.addEventListener("click", onRestartClick);
     notificationDiv.textContent = winner
-      ? `Победил игрок ${winner}!`
+      ? `Игрок ${winner} победил на ${turnIndex} ходу!`
       : "Ничья!";
 
     infoDiv.appendChild(notificationDiv);
