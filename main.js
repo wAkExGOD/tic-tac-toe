@@ -1,6 +1,4 @@
-let turnIndex = 0;
-let winner = "";
-let isDraw = false;
+let currentRound = createRound();
 
 const winLines = [
   // Horizontals
@@ -16,59 +14,53 @@ const winLines = [
   [2, 4, 6],
 ];
 
-let rows = [
-  ["", "", ""],
-  ["", "", ""],
-  ["", "", ""],
-];
+const events = {
+  update: 'update-field',
+  restart: 'restart-game',
+};
 
-window.addEventListener("update-field", () => {
+window.addEventListener(events.update, () => {
   render(
-    {
-      rows,
-      turnIndex,
-      winner,
-      isDraw,
-    },
+    currentRound,
     handleCellClick,
     handleRestartClick
   );
 });
 
-window.addEventListener("restart-game", () => {
-  turnIndex = 0;
-  winner = "";
-  isDraw = false;
-  rows = [
-    ["", "", ""],
-    ["", "", ""],
-    ["", "", ""],
-  ];
-
-  window.dispatchEvent(new Event("update-field"));
+window.addEventListener(events.restart, () => {
+  currentRound = createRound();
+  window.dispatchEvent(new Event(events.update));
 });
 
-window.dispatchEvent(new Event("update-field"));
+window.dispatchEvent(new Event(events.update));
 
 function handleCellClick(i, j) {
-  if (winner || isDraw) {
+  if (currentRound.result.type !== "playing") {
     return;
   }
 
-  if (rows[i][j]) {
+  if (currentRound.rows[i][j]) {
     return;
   }
 
-  rows[i][j] = ["X", "O"][turnIndex % 2];
-  winner = getWinner(rows);
-  turnIndex++;
-  isDraw = rows.flat().join("").length === 9 && !winner;
+  currentRound.rows[i][j] = ["X", "O"][currentRound.turnIndex % 2];
+  currentRound.result.winner = getWinner(currentRound.rows);
+  currentRound.turnIndex++;
+  let isFieldFilled = currentRound.rows.flat().join("").length === 9;
 
-  window.dispatchEvent(new Event("update-field"));
+  if (currentRound.result.winner) {
+    currentRound.result.type = "win";
+  } else {
+    if (isFieldFilled) {
+      currentRound.result.type = "draw";
+    }
+  }
+
+  window.dispatchEvent(new Event(events.update));
 }
 
 function handleRestartClick() {
-  window.dispatchEvent(new Event("restart-game"));
+  window.dispatchEvent(new Event(events.restart));
 }
 
 function getWinner(rows) {
@@ -87,8 +79,23 @@ function getWinner(rows) {
     : null;
 }
 
-function render(gameInfo, onCellClick, onRestartClick) {
-  const { rows, turnIndex, winner, isDraw } = gameInfo;
+function createRound() {
+  return {
+    turnIndex: 0,
+    result: {
+      type: "playing", /*  playing | draw | win  */
+      winner: null,
+    },
+    rows: [
+      ["", "", ""],
+      ["", "", ""],
+      ["", "", ""],
+    ],
+  }
+}
+
+function render(currentRound, onCellClick, onRestartClick) {
+  const { rows, turnIndex, result } = currentRound;
 
   const fieldDiv = document.querySelector(".field");
   const turnInfoDiv = document.querySelector(".turn");
@@ -118,7 +125,7 @@ function render(gameInfo, onCellClick, onRestartClick) {
     fieldDiv.appendChild(rowDiv);
   });
 
-  if (winner || isDraw) {
+  if (result.type !== "playing") {
     const notificationDiv = document.createElement("div");
     const restartGameButton = document.createElement("div");
 
@@ -126,8 +133,8 @@ function render(gameInfo, onCellClick, onRestartClick) {
     restartGameButton.classList.add("restart");
     restartGameButton.textContent = "Играть снова";
     restartGameButton.addEventListener("click", onRestartClick);
-    notificationDiv.textContent = winner
-      ? `Игрок ${winner} победил на ${turnIndex} ходу!`
+    notificationDiv.textContent = result.type === "win"
+      ? `Игрок ${result.winner} победил на ${turnIndex} ходу!`
       : "Ничья!";
 
     infoDiv.appendChild(notificationDiv);
