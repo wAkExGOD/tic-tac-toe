@@ -68,8 +68,8 @@ h1 {
 }
 
 .cell {
-  width: 20vw;
-  height: 20vw;
+  width: calc(100vw / (var(--field-size) + 2));
+  height: calc(100vw / (var(--field-size) + 2));
   max-width: 16vh;
   max-height: 16vh;
   display: flex;

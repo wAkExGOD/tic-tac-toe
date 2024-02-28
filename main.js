@@ -1,34 +1,18 @@
-let currentRound = createRound();
-
-const winLines = [
-  // Horizontals
-  [0, 1, 2],
-  [3, 4, 5],
-  [6, 7, 8],
-  // Verticals
-  [0, 3, 6],
-  [1, 4, 7],
-  [2, 5, 8],
-  // Diagonals
-  [0, 4, 8],
-  [2, 4, 6],
-];
-
+const fieldSize = 3;
 const events = {
-  update: 'update-field',
-  restart: 'restart-game',
+  update: "update-field",
+  restart: "restart-game",
 };
 
+const winLines = createWinLinesBySize(fieldSize);
+let currentRound = createRound(fieldSize);
+
 window.addEventListener(events.update, () => {
-  render(
-    currentRound,
-    handleCellClick,
-    handleRestartClick
-  );
+  render(currentRound, handleCellClick, handleRestartClick);
 });
 
 window.addEventListener(events.restart, () => {
-  currentRound = createRound();
+  currentRound = createRound(fieldSize);
   window.dispatchEvent(new Event(events.update));
 });
 
@@ -46,7 +30,8 @@ function handleCellClick(i, j) {
   currentRound.rows[i][j] = ["X", "O"][currentRound.turnIndex % 2];
   currentRound.result.winner = getWinner(currentRound.rows);
   currentRound.turnIndex++;
-  let isFieldFilled = currentRound.rows.flat().join("").length === 9;
+  let isFieldFilled =
+    currentRound.rows.flat().join("").length === fieldSize * fieldSize;
 
   if (currentRound.result.winner) {
     currentRound.result.type = "win";
@@ -68,10 +53,11 @@ function getWinner(rows) {
 
   let winner = "";
   return winLines.some((line) => {
-    const [a, b, c] = line;
+    let firstItem = board[line[0]];
+    const isWin = line.every((index) => board[index] === firstItem);
 
-    if (board[a] && board[a] === board[b] && board[a] === board[c]) {
-      winner = board[a];
+    if (isWin) {
+      winner = firstItem;
       return true;
     }
   })
@@ -79,24 +65,55 @@ function getWinner(rows) {
     : null;
 }
 
-function createRound() {
+function createWinLinesBySize(size) {
+  const winLines = [];
+
+  // horizontals
+  winLines.push(
+    ...Array.from({ length: size }, (_, i) =>
+      Array.from({ length: size }, (_, j) => i * size + j)
+    )
+  );
+
+  // verticals
+  winLines.push(
+    ...Array.from({ length: size }, (_, i) =>
+      Array.from({ length: size }, (_, j) => winLines[j][i])
+    )
+  );
+
+  // diagonals
+  const combinationLeft = Array.from(
+    { length: size },
+    (_, i) => winLines[i][i]
+  );
+  const combinationRight = Array.from(
+    { length: size },
+    (_, i) => winLines[i][size - i - 1]
+  );
+  winLines.push(combinationLeft, combinationRight);
+
+  return winLines;
+}
+
+function createRound(fieldSize = 3) {
   return {
     turnIndex: 0,
+    fieldSize,
     result: {
-      type: "playing", /*  playing | draw | win  */
+      type: "playing" /*  playing | draw | win  */,
       winner: null,
     },
-    rows: [
-      ["", "", ""],
-      ["", "", ""],
-      ["", "", ""],
-    ],
-  }
+    rows: Array.from({ length: fieldSize }, () =>
+      Array.from({ length: fieldSize }, () => "")
+    ),
+  };
 }
 
 function render(currentRound, onCellClick, onRestartClick) {
-  const { rows, turnIndex, result } = currentRound;
+  const { rows, turnIndex, fieldSize, result } = currentRound;
 
+  document.body.style = `--field-size: ${fieldSize}`;
   const fieldDiv = document.querySelector(".field");
   const turnInfoDiv = document.querySelector(".turn");
   const infoDiv = document.querySelector(".info");
@@ -133,9 +150,10 @@ function render(currentRound, onCellClick, onRestartClick) {
     restartGameButton.classList.add("restart");
     restartGameButton.textContent = "Играть снова";
     restartGameButton.addEventListener("click", onRestartClick);
-    notificationDiv.textContent = result.type === "win"
-      ? `Игрок ${result.winner} победил на ${turnIndex} ходу!`
-      : "Ничья!";
+    notificationDiv.textContent =
+      result.type === "win"
+        ? `Игрок ${result.winner} победил на ${turnIndex} ходу!`
+        : "Ничья!";
 
     infoDiv.appendChild(notificationDiv);
     infoDiv.appendChild(restartGameButton);
