@@ -4,7 +4,7 @@ const events = {
   restart: "restart-game",
 };
 
-const winLines = createWinLinesBySize(fieldSize);
+const winCombinations = createWinCombinationsBySize(fieldSize);
 let currentRound = createRound(fieldSize);
 
 window.addEventListener(events.update, () => {
@@ -52,7 +52,7 @@ function getWinner(rows) {
   const board = rows.flat();
 
   let winner = "";
-  return winLines.some((line) => {
+  return winCombinations.some((line) => {
     let firstItem = board[line[0]];
     const isWin = line.every((index) => board[index] === firstItem);
 
@@ -65,35 +65,45 @@ function getWinner(rows) {
     : null;
 }
 
-function createWinLinesBySize(size) {
-  const winLines = [];
+function createWinCombinationsBySize(size) {
+  // I will use "for" just because another ways are not readable,
+  // it will be hard to understand
+  // (just check previous commits to see it).
+  // So, code below with "for" is more readable in my opinion.
+
+  const winCombinations = [];
 
   // horizontals
-  winLines.push(
-    ...Array.from({ length: size }, (_, i) =>
-      Array.from({ length: size }, (_, j) => i * size + j)
-    )
-  );
+  for (let i = 0; i < size; i++) {
+    const combination = [];
+    for (let j = 0; j < size; j++) {
+      combination.push(i * size + j);
+    }
+
+    winCombinations.push(combination);
+  }
 
   // verticals
-  winLines.push(
-    ...Array.from({ length: size }, (_, i) =>
-      Array.from({ length: size }, (_, j) => winLines[j][i])
-    )
-  );
+  for (let i = 0; i < size; i++) {
+    const combination = [];
+    for (let j = 0; j < size; j++) {
+      combination.push(winCombinations[j][i]);
+    }
+
+    winCombinations.push(combination);
+  }
 
   // diagonals
-  const combinationLeft = Array.from(
-    { length: size },
-    (_, i) => winLines[i][i]
-  );
-  const combinationRight = Array.from(
-    { length: size },
-    (_, i) => winLines[i][size - i - 1]
-  );
-  winLines.push(combinationLeft, combinationRight);
+  const combinationLeft = [];
+  const combinationRight = [];
+  for (let i = 0; i < size; i++) {
+    combinationLeft.push(winCombinations[i][i]);
+    combinationRight.push(winCombinations[i][size - i - 1]);
+  }
+  winCombinations.push(combinationLeft);
+  winCombinations.push(combinationRight);
 
-  return winLines;
+  return winCombinations;
 }
 
 function createRound(fieldSize = 3) {
@@ -118,10 +128,8 @@ function render(currentRound, onCellClick, onRestartClick) {
   const turnInfoDiv = document.querySelector(".turn");
   const infoDiv = document.querySelector(".info");
 
-  const player = ["X", "O"][turnIndex % 2];
-
   turnInfoDiv.classList.remove("hidden");
-  turnInfoDiv.innerText = `Ход #${turnIndex + 1}: ${player}`;
+  turnInfoDiv.innerText = `Ход #${turnIndex + 1}: ${["X", "O"][turnIndex % 2]}`;
 
   fieldDiv.innerHTML = "";
   infoDiv.innerHTML = "";
