@@ -1,43 +1,50 @@
-const fieldSize = 3;
+const defaultValues = {
+  players: ["X", "O"],
+  fieldSize: 3,
+  itemsInRowToWin: 3,
+};
+
 const events = {
   update: "update-field",
   restart: "restart-game",
 };
 
-const winCombinations = createWinCombinationsBySize(fieldSize);
-let currentRound = createRound(fieldSize);
+let currentRound = createRound();
 
 window.addEventListener(events.update, () => {
   render(currentRound, handleCellClick, handleRestartClick);
 });
 
 window.addEventListener(events.restart, () => {
-  currentRound = createRound(fieldSize);
+  currentRound = createRound();
   window.dispatchEvent(new Event(events.update));
 });
 
 window.dispatchEvent(new Event(events.update));
 
 function handleCellClick(i, j) {
-  if (currentRound.result.type !== "playing") {
+  const { players, turnIndex, field, fieldSize, result } = currentRound;
+  const currentPlayer = players[turnIndex % players.length];
+
+  if (result.type !== "playing") {
     return;
   }
 
-  if (currentRound.rows[i][j]) {
+  if (field[i][j]) {
     return;
   }
 
-  currentRound.rows[i][j] = ["X", "O"][currentRound.turnIndex % 2];
-  currentRound.result.winner = getWinner(currentRound.rows);
+  currentRound.field[i][j] = currentPlayer;
+  currentRound.result.winner = checkWinnerOnField() ? currentPlayer : null;
   currentRound.turnIndex++;
-  let isFieldFilled =
-    currentRound.rows.flat().join("").length === fieldSize * fieldSize;
 
-  if (currentRound.result.winner) {
-    currentRound.result.type = "win";
+  let isFieldFilled = field.flat().join("").length === fieldSize ** 2;
+
+  if (result.winner) {
+    result.type = "win";
   } else {
     if (isFieldFilled) {
-      currentRound.result.type = "draw";
+      result.type = "draw";
     }
   }
 
@@ -48,80 +55,69 @@ function handleRestartClick() {
   window.dispatchEvent(new Event(events.restart));
 }
 
-function getWinner(rows) {
-  const board = rows.flat();
+function checkWinnerOnField() {
+  const { field, fieldSize, itemsInRowToWin } = currentRound;
 
-  let winner = "";
-  return winCombinations.some((line) => {
-    let firstItem = board[line[0]];
-    const isWin = line.every((index) => board[index] === firstItem);
+  const isWinnerInRows = field.some((row) => checkWinnerInRow(row));
+  if (isWinnerInRows) {
+    return true;
+  }
 
-    if (isWin) {
-      winner = firstItem;
-      return true;
+  const isWinnerInColumns = field.some((_, i) => {
+    return checkWinnerInRow(field.map((row) => row[i]));
+  });
+  if (isWinnerInColumns) {
+    return true;
+  }
+
+  const iterations = fieldSize - itemsInRowToWin + 1;
+  for (let i = 0; i < iterations; i++) {
+    for (let j = 0; j < iterations; j++) {
+      const fieldPart = field.slice(i, i + itemsInRowToWin);
+
+      const isWinnerInFirstDiagonal = checkWinnerInRow(
+        fieldPart.map((row, index) => row[index + j])
+      );
+      const isWinnerInSecondDiagonal = checkWinnerInRow(
+        fieldPart.map((row, index) => row[itemsInRowToWin - 1 - index + j])
+      );
+
+      if (isWinnerInFirstDiagonal || isWinnerInSecondDiagonal) {
+        return true;
+      }
     }
-  })
-    ? winner
-    : null;
+  }
+
+  return false;
 }
 
-function createWinCombinationsBySize(size) {
-  // I will use "for" just because another ways are not readable,
-  // it will be hard to understand
-  // (just check previous commits to see it).
-  // So, code below with "for" is more readable in my opinion.
-
-  const winCombinations = [];
-
-  // horizontals
-  for (let i = 0; i < size; i++) {
-    const combination = [];
-    for (let j = 0; j < size; j++) {
-      combination.push(i * size + j);
-    }
-
-    winCombinations.push(combination);
-  }
-
-  // verticals
-  for (let i = 0; i < size; i++) {
-    const combination = [];
-    for (let j = 0; j < size; j++) {
-      combination.push(winCombinations[j][i]);
-    }
-
-    winCombinations.push(combination);
-  }
-
-  // diagonals
-  const combinationLeft = [];
-  const combinationRight = [];
-  for (let i = 0; i < size; i++) {
-    combinationLeft.push(winCombinations[i][i]);
-    combinationRight.push(winCombinations[i][size - i - 1]);
-  }
-  winCombinations.push(combinationLeft);
-  winCombinations.push(combinationRight);
-
-  return winCombinations;
+function checkWinnerInRow(row) {
+  const { itemsInRowToWin, players, turnIndex } = currentRound;
+  return row
+    .join("")
+    .includes(players[turnIndex % players.length].repeat(itemsInRowToWin));
 }
 
-function createRound(fieldSize = 3) {
+function createRound() {
+  const { players, itemsInRowToWin, fieldSize } = defaultValues;
+
   return {
     turnIndex: 0,
+    players,
+    itemsInRowToWin,
     fieldSize,
     result: {
       type: "playing" /*  playing | draw | win  */,
       winner: null,
     },
-    rows: Array.from({ length: fieldSize }, () =>
+    field: Array.from({ length: fieldSize }, () =>
       Array.from({ length: fieldSize }, () => "")
     ),
   };
 }
 
 function render(currentRound, onCellClick, onRestartClick) {
-  const { rows, turnIndex, fieldSize, result } = currentRound;
+  const { field, turnIndex, fieldSize, result } = currentRound;
 
   document.body.style = `--field-size: ${fieldSize}`;
   const fieldDiv = document.querySelector(".field");
@@ -134,7 +130,7 @@ function render(currentRound, onCellClick, onRestartClick) {
   fieldDiv.innerHTML = "";
   infoDiv.innerHTML = "";
 
-  rows.forEach((row, i) => {
+  field.forEach((row, i) => {
     const rowDiv = document.createElement("div");
     rowDiv.classList.add("row");
 
